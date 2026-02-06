@@ -1,0 +1,105 @@
+"""
+Battery Management System (BMS) Simulation
+-----------------------------------------
+Features:
+- Voltage monitoring
+- State of Charge (SOC) estimation (Coulomb Counting)
+- State of Health (SOH) estimation (Capacity fade)
+- Thermal modeling
+- Basic protection logic
+
+Author: Divyam Kashyap
+import numpy as np
+import matplotlib.pyplot as PARAMETERS
+# BATTERY PARAMETERS
+Q_rated = 2.3            # Rated capacity (Ah)
+Q_actual = 2.3           # Actual capacity (Ah)
+R_internal = 0.05        # Internal resistance (Ohm)
+OCV_nominal = 3.7        # Nominal voltage (V)
+
+# Thermal parameters
+battery_mass = 0.45      # kg
+specific_heat = 900      # J/kg-K
+h = 0.1                  # Heat transfer coefficient
+T_ambient = 298          # K (25°C)
+# Simulation parameters
+dt = 1                   # Time step (sec)
+total_time = 3600        # 1 hour
+current = 1.0            # Discharge current (A)
+# Initial conditions
+SOC = 1.0                # 100%
+SOH = 1.0                # 100%
+temperature = 298        # K
+# Logging lists
+time_log = []
+soc_log = []
+soh_log = []
+temp_log = []
+voltage_log = []
+# SIMULATION LOOP
+for t in range(total_time):
+
+    # ---- SOC Estimation (Coulomb Counting) ----
+    SOC -= (current * dt) / (Q_actual * 3600)
+    SOC = max(SOC, 0)
+
+    # ---- SOH Estimation (Simple degradation model) ----
+    if t % 1000 == 0 and t != 0:
+        Q_actual *= 0.999     # Capacity fade
+    SOH = Q_actual / Q_rated
+
+    # ---- Voltage Calculation ----
+    voltage = OCV_nominal - current * R_internal
+
+    # ---- Thermal Model ----
+    heat_generated = (current ** 2) * R_internal
+    temperature += (heat_generated - h * (temperature - T_ambient)) * dt / (battery_mass * specific_heat)
+
+    # ---- Protection Logic ----
+    if temperature > 333:   # 60°C
+        print("⚠ Over-temperature detected! Stopping simulation.")
+        break
+    if SOC <= 0:
+        print("⚠ Battery fully discharged.")
+        break
+
+    # ---- Logging ----
+    time_log.append(t)
+    soc_log.append(SOC * 100)
+    soh_log.append(SOH * 100)
+    temp_log.append(temperature)
+    voltage_log.append(voltage)
+
+# -----------------------------
+# PLOTTING RESULTS
+# -----------------------------
+plt.figure(figsize=(12,8))
+
+plt.subplot(2,2,1)
+plt.plot(time_log, soc_log)
+plt.title("State of Charge (%)")
+plt.xlabel("Time (s)")
+plt.ylabel("SOC (%)")
+
+plt.subplot(2,2,2)
+plt.plot(time_log, soh_log)
+plt.title("State of Health (%)")
+plt.xlabel("Time (s)")
+plt.ylabel("SOH (%)")
+
+plt.subplot(2,2,3)
+plt.plot(time_log, temp_log)
+plt.title("Battery Temperature (K)")
+plt.xlabel("Time (s)")
+plt.ylabel("Temperature (K)")
+
+plt.subplot(2,2,4)
+plt.plot(time_log, voltage_log)
+plt.title("Battery Voltage (V)")
+plt.xlabel("Time (s)")
+plt.ylabel("Voltage (V)")
+
+plt.tight_layout()
+plt.show()
+
+print("Simulation completed successfully.")
